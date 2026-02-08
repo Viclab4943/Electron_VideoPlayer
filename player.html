@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: black;
+            overflow: hidden;
+        }
+        
+        #video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        #video1 {
+            z-index: 2;
+            opacity: 1;
+        }
+        
+        #video2 {
+            z-index: 1;
+            opacity: 0;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            z-index: 1000;
+            text-align: center;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        Loading videos...
+    </div>
+    
+    <div id="video-container" style="display: none;">
+        <video id="video1" playsinline></video>
+        <video id="video2" playsinline></video>
+    </div>
+    
+    <script>
+        const videos = {
+            default: '/videos/default',
+            1: '/videos/1',
+            2: '/videos/2',
+            3: '/videos/3'
+        };
+        
+        let video1 = document.getElementById('video1');
+        let video2 = document.getElementById('video2');
+        let currentVideo = video1;
+        let nextVideo = video2;
+        let isPlayingAction = false;
+        const loading = document.getElementById('loading');
+        const container = document.getElementById('video-container');
+        
+        function hideLoading() {
+            loading.style.display = 'none';
+            container.style.display = 'block';
+        }
+        
+        function showLoading(message = 'Loading...') {
+            loading.innerHTML = `<div class="spinner"></div>${message}`;
+            loading.style.display = 'block';
+        }
+        
+        function init() {
+            console.log('Initializing player...');
+            
+            currentVideo.src = videos.default;
+            currentVideo.loop = true;
+            currentVideo.muted = true;
+            currentVideo.load();
+            
+            currentVideo.addEventListener('loadeddata', () => {
+                currentVideo.play().then(() => {
+                    console.log('Playing default video');
+                    hideLoading();
+                }).catch(err => {
+                    console.error('Autoplay failed:', err);
+                    hideLoading();
+                    document.body.addEventListener('click', () => {
+                        currentVideo.play();
+                    }, { once: true });
+                });
+            }, { once: true });
+            
+            currentVideo.addEventListener('error', (e) => {
+                console.error('Video load error:', e);
+                showLoading('Error loading video');
+            });
+        }
+        
+        function playVideo(videoId) {
+            const isDefault = (videoId === 'default');
+            const videoSrc = videos[videoId] || videos.default;
+            
+            console.log(`Loading video: ${videoId} (${isDefault ? 'default' : 'action'})`);
+            
+            nextVideo.src = videoSrc;
+            nextVideo.loop = isDefault;
+            nextVideo.muted = isDefault;
+            nextVideo.load();
+            
+            nextVideo.addEventListener('loadeddata', () => {
+                nextVideo.play().then(() => {
+                    nextVideo.style.opacity = 1;
+                    currentVideo.style.opacity = 0;
+                    
+                    console.log(`Playing ${isDefault ? 'default' : 'action'} video`);
+                    
+                    setTimeout(() => {
+                        currentVideo.pause();
+                        currentVideo.style.opacity = 0;
+                        [currentVideo, nextVideo] = [nextVideo, currentVideo];
+                        isPlayingAction = !isDefault;
+                    }, 500);
+                }).catch(err => {
+                    console.error('Play failed:', err);
+                });
+            }, { once: true });
+        }
+        
+        video1.addEventListener('ended', () => {
+            if (isPlayingAction && video1 === currentVideo) {
+                console.log('Action video ended - returning to default');
+                setTimeout(() => playVideo('default'), 300);
+            }
+        });
+        
+        video2.addEventListener('ended', () => {
+            if (isPlayingAction && video2 === currentVideo) {
+                console.log('Action video ended - returning to default');
+                setTimeout(() => playVideo('default'), 300);
+            }
+        });
+        
+        let ws;
+        let reconnectInterval;
+        
+        function connectWebSocket() {
+            console.log('Connecting to server...');
+            
+            ws = new WebSocket('ws://localhost:8765');
+            
+            ws.onopen = () => {
+                console.log('Connected to server');
+                clearInterval(reconnectInterval);
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Received command:', data);
+                
+                if (data.action === 'changeVideo') {
+                    playVideo(data.videoId.toString());
+                } else if (data.action === 'close') {
+                    playVideo('default');
+                } else if (data.action === 'pause') {
+                    if (currentVideo.paused) {
+                        currentVideo.play();
+                    } else {
+                        currentVideo.pause();
+                    }
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onclose = () => {
+                console.log('Disconnected - reconnecting...');
+                reconnectInterval = setInterval(() => {
+                    connectWebSocket();
+                }, 3000);
+            };
+        }
+        
+        init();
+        connectWebSocket();
+        
+        // Keyboard shortcuts for testing
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '1') playVideo('1');
+            if (e.key === '2') playVideo('2');
+            if (e.key === '3') playVideo('3');
+            if (e.key === '0') playVideo('default');
+            if (e.key === ' ') {
+                e.preventDefault();
+                currentVideo.paused ? currentVideo.play() : currentVideo.pause();
+            }
+        });
+    </script>
+</body>
+</html>
