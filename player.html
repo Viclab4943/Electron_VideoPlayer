@@ -70,6 +70,22 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        #exit-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(255, 255, 255, 0.5);
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #exit-hint:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -82,14 +98,24 @@
         <video id="video1" playsinline></video>
         <video id="video2" playsinline></video>
     </div>
+
+    <div id="exit-hint">Press ESC to exit fullscreen | Cmd+Q to quit</div>
     
     <script>
+        // Videos are loaded dynamically
         const videos = {
-            default: '/videos/default',
-            1: '/videos/1',
-            2: '/videos/2',
-            3: '/videos/3'
+            default: '/videos/default'
         };
+
+        // Load available videos from server
+        fetch('/api/videos')
+            .then(r => r.json())
+            .then(data => {
+                data.videos.forEach(id => {
+                    videos[id] = `/videos/${id}`;
+                });
+                console.log('Available videos:', videos);
+            });
         
         let video1 = document.getElementById('video1');
         let video2 = document.getElementById('video2');
@@ -136,15 +162,15 @@
             });
         }
         
-        function playVideo(videoId) {
+        function playVideo(videoId, muted = false) {
             const isDefault = (videoId === 'default');
             const videoSrc = videos[videoId] || videos.default;
             
-            console.log(`Loading video: ${videoId} (${isDefault ? 'default' : 'action'})`);
+            console.log(`Loading video: ${videoId} (${isDefault ? 'default' : 'action'}, muted: ${muted})`);
             
             nextVideo.src = videoSrc;
             nextVideo.loop = isDefault;
-            nextVideo.muted = isDefault;
+            nextVideo.muted = isDefault ? true : muted;
             nextVideo.load();
             
             nextVideo.addEventListener('loadeddata', () => {
@@ -152,7 +178,7 @@
                     nextVideo.style.opacity = 1;
                     currentVideo.style.opacity = 0;
                     
-                    console.log(`Playing ${isDefault ? 'default' : 'action'} video`);
+                    console.log(`Playing ${isDefault ? 'default' : 'action'} video (muted: ${nextVideo.muted})`);
                     
                     setTimeout(() => {
                         currentVideo.pause();
@@ -198,7 +224,9 @@
                 console.log('Received command:', data);
                 
                 if (data.action === 'changeVideo') {
-                    playVideo(data.videoId.toString());
+                    // Check click type
+                    const muted = (data.clickType === 'double_click');
+                    playVideo(data.videoId.toString(), muted);
                 } else if (data.action === 'close') {
                     playVideo('default');
                 } else if (data.action === 'pause') {
@@ -227,14 +255,19 @@
         
         // Keyboard shortcuts for testing
         document.addEventListener('keydown', (e) => {
-            if (e.key === '1') playVideo('1');
-            if (e.key === '2') playVideo('2');
-            if (e.key === '3') playVideo('3');
+            if (e.key === '1') playVideo('1', false);
+            if (e.key === '2') playVideo('2', false);
+            if (e.key === '3') playVideo('3', false);
+            if (e.key === '4') playVideo('4', false);
+            if (e.key === '5') playVideo('5', false);
             if (e.key === '0') playVideo('default');
             if (e.key === ' ') {
                 e.preventDefault();
                 currentVideo.paused ? currentVideo.play() : currentVideo.pause();
             }
+            // Test double-click behavior with Shift+number
+            if (e.shiftKey && e.key === '!') playVideo('1', true); // Shift+1
+            if (e.shiftKey && e.key === '@') playVideo('2', true); // Shift+2
         });
     </script>
 </body>

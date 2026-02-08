@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, globalShortcut } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 
@@ -17,24 +17,36 @@ function createWindow() {
         backgroundColor: '#000000'
     });
 
-    // Load the video player
     mainWindow.loadURL('http://localhost:5555');
-    
-    // Remove menu bar
     mainWindow.setMenu(null);
-    
-    // Optional: Open DevTools for debugging (remove in production)
-    // mainWindow.webContents.openDevTools();
 
     mainWindow.on('closed', () => {
         mainWindow = null;
     });
 
-    // Prevent accidental navigation
     mainWindow.webContents.on('will-navigate', (event, url) => {
         if (!url.startsWith('http://localhost:5555')) {
             event.preventDefault();
         }
+    });
+
+    // Register keyboard shortcuts
+    // ESC to exit fullscreen/kiosk
+    globalShortcut.register('Escape', () => {
+        if (mainWindow) {
+            mainWindow.setKiosk(false);
+            mainWindow.setFullScreen(false);
+        }
+    });
+
+    // Command+Q or Ctrl+Q to quit
+    globalShortcut.register('CommandOrControl+Q', () => {
+        app.quit();
+    });
+
+    // Command+W or Ctrl+W to close window (exits app)
+    globalShortcut.register('CommandOrControl+W', () => {
+        app.quit();
     });
 }
 
@@ -55,20 +67,18 @@ function startServer() {
 }
 
 app.whenReady().then(() => {
-    // Start the web server
     startServer();
-    
-    // Wait for server to start, then create window
     setTimeout(() => {
         createWindow();
     }, 3000);
 });
 
 app.on('window-all-closed', () => {
-    // Kill server process
     if (serverProcess) {
         serverProcess.kill();
     }
+    // Unregister all shortcuts
+    globalShortcut.unregisterAll();
     app.quit();
 });
 
@@ -78,9 +88,13 @@ app.on('activate', () => {
     }
 });
 
-// Cleanup on quit
 app.on('before-quit', () => {
     if (serverProcess) {
         serverProcess.kill();
     }
+    globalShortcut.unregisterAll();
+});
+
+app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
 });

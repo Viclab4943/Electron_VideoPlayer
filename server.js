@@ -5,7 +5,6 @@ const fs = require('fs');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 
-// Set FFmpeg path
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 const app = express();
@@ -14,7 +13,6 @@ app.use(express.json());
 const VIDEOS_DIR = path.join(__dirname, 'videos');
 const CACHE_DIR = path.join(__dirname, 'video_cache');
 
-// Create directories
 if (!fs.existsSync(CACHE_DIR)) {
     fs.mkdirSync(CACHE_DIR, { recursive: true });
 }
@@ -46,7 +44,37 @@ function broadcast(data) {
     console.log('📡 Broadcasted:', data);
 }
 
-// Find video file by name (supports multiple formats)
+// Auto-discover all videos in the videos folder
+function getAvailableVideos() {
+    const extensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.wmv', '.flv'];
+    const videoMap = {};
+    
+    if (!fs.existsSync(VIDEOS_DIR)) return videoMap;
+    
+    const files = fs.readdirSync(VIDEOS_DIR);
+    
+    files.forEach(file => {
+        const ext = path.extname(file).toLowerCase();
+        if (extensions.includes(ext)) {
+            const basename = path.basename(file, ext);
+            
+            // Map filenames to IDs
+            if (basename.toLowerCase() === 'default') {
+                videoMap['default'] = path.join(VIDEOS_DIR, file);
+            } else if (basename.toLowerCase().startsWith('video')) {
+                // Extract number from "video1", "video2", etc.
+                const match = basename.match(/video(\d+)/i);
+                if (match) {
+                    const num = match[1];
+                    videoMap[num] = path.join(VIDEOS_DIR, file);
+                }
+            }
+        }
+    });
+    
+    return videoMap;
+}
+
 function findVideoFile(videoName) {
     const extensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.wmv', '.flv'];
     
@@ -57,7 +85,6 @@ function findVideoFile(videoName) {
         }
     }
     
-    // Try case-insensitive search
     const files = fs.readdirSync(VIDEOS_DIR);
     for (const file of files) {
         const basename = path.basename(file, path.extname(file));
@@ -69,10 +96,8 @@ function findVideoFile(videoName) {
     return null;
 }
 
-// Convert video to browser-compatible MP4
 function convertVideo(inputPath, outputPath) {
     return new Promise((resolve, reject) => {
-        // Check if already converted
         if (fs.existsSync(outputPath)) {
             console.log('✓ Using cached:', path.basename(outputPath));
             resolve(outputPath);
@@ -105,61 +130,46 @@ function convertVideo(inputPath, outputPath) {
     });
 }
 
-// Pre-convert all videos on startup
 async function preconvertVideos() {
     console.log('\n' + '='.repeat(50));
     console.log('🎬 Pre-converting videos...');
     console.log('='.repeat(50));
     
-    const videoIds = {
-        'default': 'default',
-        '1': 'video1',
-        '2': 'video2',
-        '3': 'video3'
-    };
+    const availableVideos = getAvailableVideos();
     
-    for (const [id, name] of Object.entries(videoIds)) {
-        const sourcePath = findVideoFile(name);
-        
-        if (!sourcePath) {
-            console.log(`⚠️  Video not found: ${name}`);
-            continue;
-        }
-        
+    for (const [id, sourcePath] of Object.entries(availableVideos)) {
         const cachePath = path.join(CACHE_DIR, `${id}.mp4`);
         
         try {
             await convertVideo(sourcePath, cachePath);
         } catch (err) {
-            console.error(`Failed to convert ${name}:`, err.message);
+            console.error(`Failed to convert video ${id}:`, err.message);
         }
     }
     
     console.log('='.repeat(50));
     console.log('✓ All videos ready!');
+    console.log('Available videos:', Object.keys(availableVideos).join(', '));
     console.log('='.repeat(50) + '\n');
 }
 
 // Serve video files
 app.get('/videos/:id', async (req, res) => {
-    const videoMap = {
-        'default': 'default',
-        '1': 'video1',
-        '2': 'video2',
-        '3': 'video3'
-    };
-
-    const videoName = videoMap[req.params.id];
-    if (!videoName) {
-        return res.status(404).json({ error: 'Invalid video ID' });
+    const videoId = req.params.id;
+    
+    // Map ID to filename
+    let videoName;
+    if (videoId === 'default') {
+        videoName = 'default';
+    } else {
+        videoName = `video${videoId}`;
     }
 
-    const cachePath = path.join(CACHE_DIR, `${req.params.id}.mp4`);
+    const cachePath = path.join(CACHE_DIR, `${videoId}.mp4`);
     
     if (fs.existsSync(cachePath)) {
         res.sendFile(cachePath);
     } else {
-        // Try to convert on-the-fly
         const sourcePath = findVideoFile(videoName);
         
         if (!sourcePath) {
@@ -175,12 +185,30 @@ app.get('/videos/:id', async (req, res) => {
     }
 });
 
-// API Routes
+// Get list of available videos
+app.get('/api/videos', (req, res) => {
+    const availableVideos = getAvailableVideos();
+    const videoIds = Object.keys(availableVideos).filter(id => id !== 'default');
+    res.json({ 
+        videos: videoIds,
+        count: videoIds.length 
+    });
+});
+
+// API Routes - with click type support
 app.post('/changeVideo', (req, res) => {
     const videoId = req.body['video-id'];
-    console.log('🎬 Change video:', videoId);
-    broadcast({ action: 'changeVideo', videoId: String(videoId) });
-    res.json({ status: 'success', 'video-id': videoId });
+    const clickType = req.body['click-type'] || 'click';
+    
+    console.log(`🎬 Change video: ${videoId}, click type: ${clickType}`);
+    
+    broadcast({ 
+        action: 'changeVideo', 
+        videoId: String(videoId),
+        clickType: clickType 
+    });
+    
+    res.json({ status: 'success', 'video-id': videoId, 'click-type': clickType });
 });
 
 app.post('/close', (req, res) => {
@@ -202,17 +230,13 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Serve the player HTML
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'player.html'));
 });
 
-// Start server
 const PORT = 5555;
 app.listen(PORT, () => {
     console.log(`\n🌐 Server running on http://localhost:${PORT}`);
     console.log(`📡 WebSocket server on ws://localhost:8765\n`);
-    
-    // Pre-convert videos
     preconvertVideos();
 });
