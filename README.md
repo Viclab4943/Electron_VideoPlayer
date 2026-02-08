@@ -2,39 +2,37 @@
 ===============================================
 
 SETUP:
-1. Install the app (double-click the installer)
-2. Open the "videos" folder inside the app
-3. Add your videos:
+1. Install the app
+2. Add videos to the "videos" folder:
    - default.mp4 → Plays on loop (muted)
    - video1.mp4 → Button 1
    - video2.mp4 → Button 2
    - video3.mp4 → Button 3
+   - video4.mp4 → Button 4
+   - video5.mp4 → Button 5
+   ... add as many as you want!
 
-Videos can be any format: .mp4, .mov, .avi, .mkv, etc.
+Videos can be: .mp4, .mov, .avi, .mkv, .webm, etc.
 
-RUNNING:
-- Double-click "Video Player" to start
-- App opens in fullscreen automatically
-- Default video plays on loop
-- Press buttons to trigger action videos
-- Action videos return to default when done
+BUTTON BEHAVIOR:
+- Single click → Play video WITH sound
+- Double click → Play video WITHOUT sound (muted)
 
-FLIC BUTTON SETUP:
-Configure your Flic Hub to send POST requests to:
-http://YOUR_COMPUTER_IP:5555
+All action videos return to default when finished.
 
-Endpoints:
-- /changeVideo → Play action video
-- /close → Return to default
+EXITING THE APP:
+- Press ESC → Exit fullscreen
+- Press Cmd+Q (Mac) or Ctrl+Q (Win) → Quit app
 
-TROUBLESHOOTING:
-- Videos not converting? FFmpeg is bundled!
-- App won't start? Check videos folder exists
-- Buttons not working? Check Flic Hub IP config
+FLIC BUTTON CONFIG:
+Send POST to: http://YOUR_IP:5555/changeVideo
+Body: {"video-id": 1, "click-type": "click"}
+     {"video-id": 1, "click-type": "double_click"}
 
-KEYBOARD SHORTCUTS (for testing):
-- Press 1, 2, 3 → Play action videos
-- Press 0 → Return to default
-- Press Space → Pause/Resume
+KEYBOARD TESTING:
+- 1, 2, 3, 4, 5 → Play videos with sound
+- Shift+1, Shift+2 → Play muted
+- 0 → Return to default
+- Space → Pause/Resume
 
 ===============================================
