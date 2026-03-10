@@ -3,15 +3,67 @@ const WebSocket = require('ws');
 const path = require('path');
 const fs = require('fs');
 const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('ffmpeg-static');
 
-ffmpeg.setFfmpegPath(ffmpegPath);
+// ffmpeg-static path breaks inside asar bundle when packaged.
+// electron-builder extracts it to extraResources, so we look there first.
+function getFfmpegPath() {
+    if (process.resourcesPath) {
+        const candidates = [
+            path.join(process.resourcesPath, 'ffmpeg', 'ffmpeg'),
+            path.join(process.resourcesPath, 'ffmpeg', 'ffmpeg.exe'),
+            path.join(process.resourcesPath, 'ffmpeg', 'bin', 'ffmpeg'),
+            path.join(process.resourcesPath, 'ffmpeg', 'bin', 'ffmpeg.exe'),
+        ];
+        for (const candidate of candidates) {
+            if (fs.existsSync(candidate)) {
+                console.log('Using packaged ffmpeg:', candidate);
+                return candidate;
+            }
+        }
+    }
+    try {
+        const ffmpegStatic = require('ffmpeg-static');
+        console.log('Using ffmpeg-static:', ffmpegStatic);
+        return ffmpegStatic;
+    } catch (e) {
+        console.error('ffmpeg not found! Video conversion will fail.');
+        return 'ffmpeg';
+    }
+}
+
+ffmpeg.setFfmpegPath(getFfmpegPath());
 
 const app = express();
 app.use(express.json());
 
-const VIDEOS_DIR = path.join(__dirname, 'videos');
-const CACHE_DIR = path.join(__dirname, 'video_cache');
+const VIDEOS_DIR = process.env.VIDEOS_DIR || path.join(require('os').homedir(), 'Documents', 'VideoPlayer', 'videos');
+const CACHE_DIR = process.env.CACHE_DIR || path.join(require('os').homedir(), 'Documents', 'VideoPlayer', 'cache');
+const CONFIG_FILE = process.env.CONFIG_FILE || path.join(__dirname, 'video-config.json');
+
+// player.html path: works both in dev and packaged (asar)
+function getPlayerHtmlPath() {
+    if (process.resourcesPath) {
+        const packed = path.join(process.resourcesPath, 'app.asar', 'player.html');
+        if (fs.existsSync(packed)) return packed;
+    }
+    return path.join(__dirname, 'player.html');
+}
+
+// Load video configuration from launcher
+function loadConfig() {
+    if (fs.existsSync(CONFIG_FILE)) {
+        try {
+            const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+            console.log('Loaded video configuration:', Object.keys(config));
+            return config;
+        } catch (err) {
+            console.error('Failed to load config:', err);
+        }
+    }
+    return {};
+}
+
+const videoConfig = loadConfig();
 
 if (!fs.existsSync(CACHE_DIR)) {
     fs.mkdirSync(CACHE_DIR, { recursive: true });
@@ -58,15 +110,12 @@ function getAvailableVideos() {
         if (extensions.includes(ext)) {
             const basename = path.basename(file, ext);
             
-            // Map filenames to IDs
             if (basename.toLowerCase() === 'default') {
                 videoMap['default'] = path.join(VIDEOS_DIR, file);
             } else if (basename.toLowerCase().startsWith('video')) {
-                // Extract number from "video1", "video2", etc.
                 const match = basename.match(/video(\d+)/i);
                 if (match) {
-                    const num = match[1];
-                    videoMap[num] = path.join(VIDEOS_DIR, file);
+                    videoMap[match[1]] = path.join(VIDEOS_DIR, file);
                 }
             }
         }
@@ -80,9 +129,7 @@ function findVideoFile(videoName) {
     
     for (const ext of extensions) {
         const filePath = path.join(VIDEOS_DIR, videoName + ext);
-        if (fs.existsSync(filePath)) {
-            return filePath;
-        }
+        if (fs.existsSync(filePath)) return filePath;
     }
     
     const files = fs.readdirSync(VIDEOS_DIR);
@@ -139,7 +186,6 @@ async function preconvertVideos() {
     
     for (const [id, sourcePath] of Object.entries(availableVideos)) {
         const cachePath = path.join(CACHE_DIR, `${id}.mp4`);
-        
         try {
             await convertVideo(sourcePath, cachePath);
         } catch (err) {
@@ -156,32 +202,23 @@ async function preconvertVideos() {
 // Serve video files
 app.get('/videos/:id', async (req, res) => {
     const videoId = req.params.id;
-    
-    // Map ID to filename
-    let videoName;
-    if (videoId === 'default') {
-        videoName = 'default';
-    } else {
-        videoName = `video${videoId}`;
-    }
-
+    const videoName = videoId === 'default' ? 'default' : `video${videoId}`;
     const cachePath = path.join(CACHE_DIR, `${videoId}.mp4`);
     
     if (fs.existsSync(cachePath)) {
+        return res.sendFile(cachePath);
+    }
+    
+    const sourcePath = findVideoFile(videoName);
+    if (!sourcePath) {
+        return res.status(404).json({ error: 'Video not found' });
+    }
+    
+    try {
+        await convertVideo(sourcePath, cachePath);
         res.sendFile(cachePath);
-    } else {
-        const sourcePath = findVideoFile(videoName);
-        
-        if (!sourcePath) {
-            return res.status(404).json({ error: 'Video not found' });
-        }
-        
-        try {
-            await convertVideo(sourcePath, cachePath);
-            res.sendFile(cachePath);
-        } catch (err) {
-            res.status(500).json({ error: 'Conversion failed' });
-        }
+    } catch (err) {
+        res.status(500).json({ error: 'Conversion failed' });
     }
 });
 
@@ -189,25 +226,15 @@ app.get('/videos/:id', async (req, res) => {
 app.get('/api/videos', (req, res) => {
     const availableVideos = getAvailableVideos();
     const videoIds = Object.keys(availableVideos).filter(id => id !== 'default');
-    res.json({ 
-        videos: videoIds,
-        count: videoIds.length 
-    });
+    res.json({ videos: videoIds, count: videoIds.length });
 });
 
-// API Routes - with click type support
+// API Routes
 app.post('/changeVideo', (req, res) => {
     const videoId = req.body['video-id'];
     const clickType = req.body['click-type'] || 'click';
-    
     console.log(`🎬 Change video: ${videoId}, click type: ${clickType}`);
-    
-    broadcast({ 
-        action: 'changeVideo', 
-        videoId: String(videoId),
-        clickType: clickType 
-    });
-    
+    broadcast({ action: 'changeVideo', videoId: String(videoId), clickType });
     res.json({ status: 'success', 'video-id': videoId, 'click-type': clickType });
 });
 
@@ -224,19 +251,18 @@ app.post('/pause', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'running', 
-        connected_clients: clients.size 
-    });
+    res.json({ status: 'running', connected_clients: clients.size });
 });
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'player.html'));
+    res.sendFile(getPlayerHtmlPath());
 });
 
 const PORT = 5555;
 app.listen(PORT, () => {
     console.log(`\n🌐 Server running on http://localhost:${PORT}`);
-    console.log(`📡 WebSocket server on ws://localhost:8765\n`);
+    console.log(`📡 WebSocket server on ws://localhost:8765`);
+    console.log(`📁 Videos dir: ${VIDEOS_DIR}`);
+    console.log(`💾 Cache dir: ${CACHE_DIR}\n`);
     preconvertVideos();
 });

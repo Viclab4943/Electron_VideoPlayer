@@ -2,7 +2,7 @@
   "name": "videoplayer",
   "version": "1.0.0",
   "description": "Fullscreen Video Player with Flic Button Support",
-  "main": "main.js",
+  "main": "launcher.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
@@ -21,7 +21,11 @@
     "files": [
       "**/*",
       "!videos/**/*",
-      "videos/.gitkeep"
+      "!video_cache/**/*",
+      "!dist/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**/*"
     ],
     "extraResources": [
       {

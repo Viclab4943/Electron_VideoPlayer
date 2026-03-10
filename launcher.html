@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player Setup</title>
+    <style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f5f5f5;
+        padding: 20px;
+    }
+
+    .container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .header {
+        background: #4a5568;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .header h1 {
+        font-size: 20px;
+        margin-bottom: 4px;
+    }
+
+    .header p {
+        opacity: 0.9;
+        font-size: 13px;
+    }
+
+    .content {
+        padding: 20px;
+    }
+
+    .section {
+        margin-bottom: 20px;
+    }
+
+    .section-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+    }
+
+    .video-slot {
+        background: #fafafa;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .video-slot.filled {
+        background: #f0f9ff;
+        border-color: #3b82f6;
+    }
+
+    .slot-left {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .slot-label {
+        font-weight: 600;
+        color: #555;
+        font-size: 13px;
+        margin-bottom: 2px;
+    }
+
+    .video-name {
+        font-size: 12px;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .video-size {
+        font-size: 11px;
+        color: #999;
+    }
+
+    .empty-state {
+        font-size: 12px;
+        color: #999;
+        font-style: italic;
+    }
+
+    .slot-buttons {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    button {
+        background: #4a5568;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    button:hover {
+        background: #2d3748;
+    }
+
+    button.secondary {
+        background: #e2e8f0;
+        color: #4a5568;
+    }
+
+    button.secondary:hover {
+        background: #cbd5e0;
+    }
+
+    button.danger {
+        background: #dc3545;
+    }
+
+    button.danger:hover {
+        background: #c82333;
+    }
+
+    button.small {
+        padding: 4px 10px;
+        font-size: 11px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .actions button {
+        flex: 1;
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .start-button {
+        background: #3b82f6;
+    }
+
+    .start-button:hover {
+        background: #2563eb;
+    }
+
+    .start-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .badge {
+        display: inline-block;
+        background: #3b82f6;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 600;
+        margin-left: 6px;
+    }
+
+    .badge.optional {
+        background: #6c757d;
+    }
+
+    .helper-text {
+        font-size: 11px;
+        color: #6c757d;
+        margin-top: 6px;
+        padding: 8px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        border-left: 3px solid #3b82f6;
+    }
+
+    .folder-section {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+</style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Video Player Setup</h1>
+            <p>Configure your videos and click Start to begin</p>
+        </div>
+
+       <div class="content">
+    <div class="section">
+        <div class="section-title">📁 Videos Directory</div>
+        <div class="folder-section">
+            <button class="secondary" onclick="openVideosFolder()">Open Folder</button>
+            <span id="videos-path" style="font-size: 11px; color: #666; word-break: break-all;">Loading path...</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">🔄 Default Video <span class="badge">Required</span></div>
+        <div class="video-slot" id="slot-default">
+            <div class="slot-left">
+                <div class="slot-label">Loops when idle (muted)</div>
+                <div class="empty-state">No video selected</div>
+            </div>
+            <div class="slot-buttons">
+                <button class="small" onclick="selectVideo('default')">Select</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">🎯 Action Videos <span class="badge optional">Optional</span></div>
+        
+        <div class="video-slot" id="slot-1">
+            <div class="slot-left">
+                <div class="slot-label">Video 1 - Button 1</div>
+                <div class="empty-state">No video selected</div>
+            </div>
+            <div class="slot-buttons">
+                <button class="small" onclick="selectVideo('1')">Select</button>
+            </div>
+        </div>
+
+        <div class="video-slot" id="slot-2">
+            <div class="slot-left">
+                <div class="slot-label">Video 2 - Button 2</div>
+                <div class="empty-state">No video selected</div>
+            </div>
+            <div class="slot-buttons">
+                <button class="small" onclick="selectVideo('2')">Select</button>
+            </div>
+        </div>
+
+        <div class="video-slot" id="slot-3">
+            <div class="slot-left">
+                <div class="slot-label">Video 3 - Button 3</div>
+                <div class="empty-state">No video selected</div>
+            </div>
+            <div class="slot-buttons">
+                <button class="small" onclick="selectVideo('3')">Select</button>
+            </div>
+        </div>
+
+        <button class="secondary small" style="width: 100%; margin-top: 8px;" onclick="addSlot()">+ Add More</button>
+    </div>
+
+    <div class="actions">
+        <button class="secondary" onclick="refreshVideos()">Refresh</button>
+        <button class="start-button" id="start-btn" onclick="startPlayer()" disabled>Start Player</button>
+    </div>
+</div> 
+    </div>
+
+    <script>
+        let videoConfig = {};
+        let nextSlotId = 4;
+
+        async function init() {
+            const dir = await window.electronAPI.getVideosDir();
+            document.getElementById('videos-path').textContent = dir;
+            await refreshVideos();
+        }
+
+        async function refreshVideos() {
+            const videos = await window.electronAPI.scanVideos();
+            console.log('Available videos:', videos);
+            
+            // Auto-assign videos based on naming
+            videoConfig = {};
+            
+            videos.forEach(video => {
+                const name = video.name.toLowerCase();
+                const nameWithoutExt = name.substring(0, name.lastIndexOf('.'));
+                
+                if (nameWithoutExt === 'default') {
+                    videoConfig['default'] = video;
+                } else if (nameWithoutExt.match(/^video(\d+)$/)) {
+                    const num = nameWithoutExt.match(/^video(\d+)$/)[1];
+                    videoConfig[num] = video;
+                }
+            });
+
+            updateUI();
+        }
+
+       function updateUI() {
+            // Update each slot
+            Object.keys(videoConfig).forEach(id => {
+                const video = videoConfig[id];
+                const slot = document.getElementById(`slot-${id}`);
+                
+                if (slot) {
+                    slot.classList.add('filled');
+                    const slotLeft = slot.querySelector('.slot-left');
+                    const slotLabel = slotLeft.querySelector('.slot-label').textContent;
+                    
+                    slotLeft.innerHTML = `
+                        <div class="slot-label">${slotLabel}</div>
+                        <div class="video-name">${video.name}</div>
+                        <div class="video-size">${video.size}</div>
+                    `;
+                    
+                    slot.querySelector('.slot-buttons').innerHTML = `
+                        <button class="small secondary" onclick="selectVideo('${id}')">Change</button>
+                        <button class="small danger" onclick="removeVideo('${id}')">Remove</button>
+                    `;
+                }
+            });
+
+            // Update empty slots
+            const allSlots = document.querySelectorAll('.video-slot');
+            allSlots.forEach(slot => {
+                const slotId = slot.id.replace('slot-', '');
+                if (!videoConfig[slotId]) {
+                    slot.classList.remove('filled');
+                    const slotLeft = slot.querySelector('.slot-left');
+                    const slotLabel = slotLeft.querySelector('.slot-label').textContent;
+                    
+                    slotLeft.innerHTML = `
+                        <div class="slot-label">${slotLabel}</div>
+                        <div class="empty-state">No video selected</div>
+                    `;
+                    
+                    slot.querySelector('.slot-buttons').innerHTML = `
+                        <button class="small" onclick="selectVideo('${slotId}')">Select</button>
+                    `;
+                }
+            });
+
+            // Enable/disable start button
+            const startBtn = document.getElementById('start-btn');
+            if (videoConfig['default']) {
+                startBtn.disabled = false;
+            } else {
+                startBtn.disabled = true;
+            }
+        } 
+
+        async function selectVideo(slotId) {
+            const video = await window.electronAPI.selectVideoFile();
+            if (video) {
+                // Rename file to match slot
+                const ext = video.name.substring(video.name.lastIndexOf('.'));
+                const newName = slotId === 'default' ? `default${ext}` : `video${slotId}${ext}`;
+                
+                // You could rename the file here if needed
+                videoConfig[slotId] = video;
+                updateUI();
+            }
+        }
+
+        async function removeVideo(slotId) {
+            if (confirm('Remove this video?')) {
+                delete videoConfig[slotId];
+                updateUI();
+            }
+        }
+
+        function addSlot() {
+            const section = document.querySelector('.section:last-of-type');
+            const addButton = section.querySelector('button[onclick="addSlot()"]');
+            
+            const newSlot = document.createElement('div');
+            newSlot.className = 'video-slot';
+            newSlot.id = `slot-${nextSlotId}`;
+            newSlot.innerHTML = `
+                <div class="slot-left">
+                    <div class="slot-label">Video ${nextSlotId} - Button ${nextSlotId}</div>
+                    <div class="empty-state">No video selected</div>
+                </div>
+                <div class="slot-buttons">
+                    <button class="small" onclick="selectVideo('${nextSlotId}')">Select</button>
+                </div>
+            `;
+            
+            section.insertBefore(newSlot, addButton);
+            nextSlotId++;
+        }
+
+        async function openVideosFolder() {
+            await window.electronAPI.openVideosFolder();
+        }
+
+        async function startPlayer() {
+            if (!videoConfig['default']) {
+                alert('Please select a default video first!');
+                return;
+            }
+
+            console.log('Starting player with config:', videoConfig);
+            await window.electronAPI.startPlayer(videoConfig);
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
