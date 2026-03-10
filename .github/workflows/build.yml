@@ -5,11 +5,12 @@ on:
     branches: [main]
     tags:
       - 'v*'
-  workflow_dispatch:  # Allows manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
@@ -31,20 +32,19 @@ jobs:
           node-version: 18
           cache: 'npm'
 
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm fakeroot
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build for ${{ matrix.platform }}
         run: npm run build:${{ matrix.platform }}
         env:
-          # Required for Mac code signing (optional - leave empty to skip signing)
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          # Add these secrets in GitHub repo settings if you want signed Mac builds:
-          # CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
-          # CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload Mac artifacts
         if: matrix.platform == 'mac'
@@ -75,7 +75,6 @@ jobs:
             dist/*.deb
           retention-days: 30
 
-  # Creates a GitHub Release with all installers when you push a version tag (e.g. v1.0.0)
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -100,15 +99,15 @@ jobs:
             ### Downloads
             | Platform | File |
             |----------|------|
-            | 🍎 Mac | `.dmg` installer |
-            | 🪟 Windows | `.exe` installer |
-            | 🐧 Linux | `.AppImage` or `.deb` |
+            | Mac | `.dmg` installer |
+            | Windows | `.exe` installer |
+            | Linux | `.AppImage` or `.deb` |
 
             ### Setup
             1. Install the app
-            2. On first launch, the **videos folder** is created automatically at:
-               - Mac/Linux: `~/Documents/VideoPlayer/videos/`
-               - Windows: `Documents\VideoPlayer\videos\`
+            2. On first launch, the videos folder is created automatically at:
+               - Mac/Linux: ~/Documents/VideoPlayer/videos/
+               - Windows: Documents\VideoPlayer\videos\
             3. Add your videos there and launch!
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
