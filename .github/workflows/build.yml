@@ -41,14 +41,24 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build for ${{ matrix.platform }}
+      - name: Build and publish (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npm run build:${{ matrix.platform }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # electron-builder will automatically publish to GitHub Releases
+          # when the GH_TOKEN is set and building from a tag
+
+      - name: Build only (on branch push)
+        if: "!startsWith(github.ref, 'refs/tags/v')"
         run: npm run build:${{ matrix.platform }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Mac artifacts
-        if: matrix.platform == 'mac'
+        if: matrix.platform == 'mac' && !startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
           name: VideoPlayer-Mac
@@ -58,7 +68,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Windows artifacts
-        if: matrix.platform == 'win'
+        if: matrix.platform == 'win' && !startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
           name: VideoPlayer-Windows
@@ -67,7 +77,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Linux artifacts
-        if: matrix.platform == 'linux'
+        if: matrix.platform == 'linux' && !startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
           name: VideoPlayer-Linux
@@ -75,40 +85,3 @@ jobs:
             dist/*.AppImage
             dist/*.deb
           retention-days: 30
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist-all
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: Video Player ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-          files: dist-all/**/*
-          body: |
-            ## Video Player ${{ github.ref_name }}
-
-            ### Downloads
-            | Platform | File |
-            |----------|------|
-            | Mac | `.dmg` installer |
-            | Windows | `.exe` installer |
-            | Linux | `.AppImage` or `.deb` |
-
-            ### Setup
-            1. Install the app
-            2. On first launch, the videos folder is created automatically at:
-               - Mac/Linux: ~/Documents/VideoPlayer/videos/
-               - Windows: Documents\VideoPlayer\videos\
-            3. Add your videos there and launch!
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,286 +3,540 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Player Setup</title>
+    <title>Video Player</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
+        :root {
+            --bg: #0f0f0f;
+            --surface: #171717;
+            --surface-raised: #1e1e1e;
+            --border: #2a2a2a;
+            --border-hover: #3a3a3a;
+            --accent: #e8e0d0;
+            --accent-dim: #a09880;
+            --green: #4caf7d;
+            --green-dim: #2d6b4a;
+            --red: #c0544a;
+            --red-dim: #7a3530;
+            --text-primary: #e8e8e8;
+            --text-secondary: #888;
+            --text-muted: #555;
+            --filled-bg: #1a1e1a;
+            --filled-border: #3a5a3a;
+        }
 
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: #f5f5f5;
-        padding: 20px;
-    }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    .container {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        max-width: 600px;
-        margin: 0 auto;
-    }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-    .header {
-        background: #4a5568;
-        color: white;
-        padding: 15px 20px;
-        border-radius: 8px 8px 0 0;
-    }
+        .header {
+            padding: 18px 28px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            background: var(--surface);
+        }
 
-    .header h1 {
-        font-size: 20px;
-        margin-bottom: 4px;
-    }
+        .header-left h1 {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
 
-    .header p {
-        opacity: 0.9;
-        font-size: 13px;
-    }
+        .header-left p {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 3px;
+            font-family: 'DM Mono', monospace;
+            max-width: 500px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
-    .content {
-        padding: 20px;
-    }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
 
-    .section {
-        margin-bottom: 20px;
-    }
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: all 0.3s ease;
+        }
 
-    .section-title {
-        font-size: 14px;
-        font-weight: 600;
-        margin-bottom: 8px;
-        color: #333;
-    }
+        .status-dot.ready {
+            background: var(--green);
+            box-shadow: 0 0 6px var(--green);
+        }
 
-    .video-slot {
-        background: #fafafa;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 10px;
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-    }
+        .status-text {
+            font-size: 11px;
+            font-family: 'DM Mono', monospace;
+            color: var(--text-muted);
+        }
 
-    .video-slot.filled {
-        background: #f0f9ff;
-        border-color: #3b82f6;
-    }
+        .layout {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            flex: 1;
+            overflow: hidden;
+        }
 
-    .slot-left {
-        flex: 1;
-        min-width: 0;
-    }
+        .sidebar {
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            background: var(--surface);
+        }
 
-    .slot-label {
-        font-weight: 600;
-        color: #555;
-        font-size: 13px;
-        margin-bottom: 2px;
-    }
+        .sidebar-section {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
 
-    .video-name {
-        font-size: 12px;
-        color: #333;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+        .sidebar-label {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
 
-    .video-size {
-        font-size: 11px;
-        color: #999;
-    }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 7px;
+        }
 
-    .empty-state {
-        font-size: 12px;
-        color: #999;
-        font-style: italic;
-    }
+        .stat-row:last-child { margin-bottom: 0; }
 
-    .slot-buttons {
-        display: flex;
-        gap: 6px;
-        flex-shrink: 0;
-    }
+        .stat-label { font-size: 11px; color: var(--text-muted); }
 
-    button {
-        background: #4a5568;
-        color: white;
-        border: none;
-        padding: 6px 12px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: 500;
-        white-space: nowrap;
-    }
+        .stat-value {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
 
-    button:hover {
-        background: #2d3748;
-    }
+        .stat-value.ok { color: var(--green); }
 
-    button.secondary {
-        background: #e2e8f0;
-        color: #4a5568;
-    }
+        .path-display {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
 
-    button.secondary:hover {
-        background: #cbd5e0;
-    }
+        .sidebar-actions {
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            margin-top: auto;
+        }
 
-    button.danger {
-        background: #dc3545;
-    }
+        .btn {
+            border: none;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 500;
+            border-radius: 3px;
+            transition: all 0.12s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
 
-    button.danger:hover {
-        background: #c82333;
-    }
+        .btn-primary {
+            background: var(--accent);
+            color: #0a0a0a;
+            padding: 10px 18px;
+            font-size: 12px;
+            letter-spacing: 0.04em;
+            width: 100%;
+            font-weight: 600;
+        }
 
-    button.small {
-        padding: 4px 10px;
-        font-size: 11px;
-    }
+        .btn-primary:hover:not(:disabled) { background: #fff; }
 
-    .actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 20px;
-        padding-top: 15px;
-        border-top: 1px solid #e2e8f0;
-    }
+        .btn-primary:disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+        }
 
-    .actions button {
-        flex: 1;
-        padding: 10px;
-        font-size: 14px;
-    }
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            padding: 8px 14px;
+            font-size: 11px;
+            width: 100%;
+        }
 
-    .start-button {
-        background: #3b82f6;
-    }
+        .btn-ghost:hover {
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+            background: var(--surface-raised);
+        }
 
-    .start-button:hover {
-        background: #2563eb;
-    }
+        .btn-sm { padding: 3px 9px; font-size: 10px; border-radius: 2px; }
 
-    .start-button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
+        .btn-select {
+            background: var(--surface-raised);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
 
-    .badge {
-        display: inline-block;
-        background: #3b82f6;
-        color: white;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 10px;
-        font-weight: 600;
-        margin-left: 6px;
-    }
+        .btn-select:hover {
+            border-color: var(--border-hover);
+            color: var(--text-primary);
+        }
 
-    .badge.optional {
-        background: #6c757d;
-    }
+        .btn-change {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
 
-    .helper-text {
-        font-size: 11px;
-        color: #6c757d;
-        margin-top: 6px;
-        padding: 8px;
-        background: #f8f9fa;
-        border-radius: 4px;
-        border-left: 3px solid #3b82f6;
-    }
+        .btn-change:hover {
+            color: var(--text-secondary);
+            border-color: var(--border-hover);
+        }
 
-    .folder-section {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-</style>
+        .btn-remove {
+            background: transparent;
+            color: var(--red-dim);
+            border: 1px solid var(--red-dim);
+        }
+
+        .btn-remove:hover {
+            background: var(--red-dim);
+            color: #fff;
+        }
+
+        .main {
+            overflow-y: auto;
+        }
+
+        .main::-webkit-scrollbar { width: 3px; }
+        .main::-webkit-scrollbar-track { background: transparent; }
+        .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .default-row {
+            display: grid;
+            grid-template-columns: 52px 1fr 80px 120px;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+            min-height: 56px;
+        }
+
+        .section-divider {
+            padding: 7px 20px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-divider-label {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 52px 1fr 80px 120px;
+            padding: 8px 20px;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 10;
+        }
+
+        .col-label {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .video-row {
+            display: grid;
+            grid-template-columns: 52px 1fr 80px 120px;
+            align-items: center;
+            padding: 0 20px;
+            min-height: 44px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.1s ease;
+        }
+
+        .video-row:hover { background: var(--surface); }
+        .video-row.filled { background: var(--filled-bg); }
+        .video-row.filled:hover { background: #1c221c; }
+
+        .add-row {
+            cursor: pointer;
+            border-bottom: 1px dashed var(--border);
+        }
+
+        .add-row:hover {
+            background: var(--surface) !important;
+        }
+
+        .add-row:hover .row-label {
+            color: var(--text-secondary) !important;
+        }
+
+
+        .row-index {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .row-info { min-width: 0; padding-right: 12px; }
+
+        .row-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+        }
+
+        .row-filename {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            color: var(--green);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 1px;
+        }
+
+        .row-empty {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: 'DM Mono', monospace;
+            margin-top: 1px;
+        }
+
+        .row-size {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .row-actions {
+            display: flex;
+            gap: 5px;
+            justify-content: flex-end;
+        }
+
+        .filled-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--green);
+            display: inline-block;
+            margin-right: 6px;
+            flex-shrink: 0;
+        }
+
+        .required-badge {
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--accent-dim);
+            border: 1px solid rgba(232, 224, 208, 0.2);
+            padding: 1px 5px;
+            border-radius: 2px;
+            margin-bottom: 3px;
+            display: inline-block;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🎬 Video Player Setup</h1>
-            <p>Configure your videos and click Start to begin</p>
-        </div>
 
-       <div class="content">
-    <div class="section">
-        <div class="section-title">📁 Videos Directory</div>
-        <div class="folder-section">
-            <button class="secondary" onclick="openVideosFolder()">Open Folder</button>
-            <span id="videos-path" style="font-size: 11px; color: #666; word-break: break-all;">Loading path...</span>
+    <div class="header">
+        <div class="header-left">
+            <h1>Video Player</h1>
+            <p id="videos-path">Scanning...</p>
+        </div>
+        <div class="header-right">
+            <div class="status-dot" id="status-dot"></div>
+            <span class="status-text" id="status-text">No default video</span>
         </div>
     </div>
 
-    <div class="section">
-        <div class="section-title">🔄 Default Video <span class="badge">Required</span></div>
-        <div class="video-slot" id="slot-default">
-            <div class="slot-left">
-                <div class="slot-label">Loops when idle (muted)</div>
-                <div class="empty-state">No video selected</div>
+    <div class="layout">
+
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-label">Overview</div>
+                <div class="stat-row">
+                    <span class="stat-label">Default video</span>
+                    <span class="stat-value" id="stat-default">Not set</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Action videos</span>
+                    <span class="stat-value ok" id="stat-count">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">API port</span>
+                    <span class="stat-value">5555</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">WebSocket port</span>
+                    <span class="stat-value">8765</span>
+                </div>
             </div>
-            <div class="slot-buttons">
-                <button class="small" onclick="selectVideo('default')">Select</button>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">File Naming</div>
+                <div class="path-display">
+                    default.mp4<br>
+                    video1.mp4<br>
+                    video2.mp4<br>
+                    ...<br>
+                    video15.mp4
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">Supported Formats</div>
+                <div class="path-display">mp4  mov  avi<br>mkv  webm  m4v</div>
+            </div>
+
+            <div class="sidebar-actions">
+                <button class="btn btn-ghost" onclick="openVideosFolder()">Open Videos Folder</button>
+                <button class="btn btn-ghost" onclick="refreshVideos()">Refresh</button>
+                <button class="btn btn-primary" id="start-btn" onclick="startPlayer()" disabled>Launch Player</button>
             </div>
         </div>
-    </div>
 
-    <div class="section">
-        <div class="section-title">🎯 Action Videos <span class="badge optional">Optional</span></div>
-        
-        <div class="video-slot" id="slot-1">
-            <div class="slot-left">
-                <div class="slot-label">Video 1 - Button 1</div>
-                <div class="empty-state">No video selected</div>
+        <div class="main">
+
+            <!-- Default video -->
+            <div class="default-row" id="slot-default">
+                <div class="row-index" style="color:var(--accent-dim);font-size:9px;letter-spacing:0.08em;">DEF</div>
+                <div class="row-info">
+                    <div class="required-badge">Required</div>
+                    <div class="row-label">Default Loop</div>
+                    <div class="row-empty" id="default-sub">Plays silently on loop when idle</div>
+                </div>
+                <div class="row-size" id="default-size"></div>
+                <div class="row-actions" id="default-actions">
+                    <button class="btn btn-sm btn-select" onclick="selectVideo('default')">Select</button>
+                </div>
             </div>
-            <div class="slot-buttons">
-                <button class="small" onclick="selectVideo('1')">Select</button>
+
+            <div class="section-divider">
+                <span class="section-divider-label">Action Videos — Triggered via API or Flic Button</span>
             </div>
+
+            <div class="table-header">
+                <div class="col-label">Slot</div>
+                <div class="col-label">File</div>
+                <div class="col-label">Size</div>
+                <div class="col-label" style="text-align:right">Actions</div>
+            </div>
+
+            <div id="slots-container"></div>
+
         </div>
-
-        <div class="video-slot" id="slot-2">
-            <div class="slot-left">
-                <div class="slot-label">Video 2 - Button 2</div>
-                <div class="empty-state">No video selected</div>
-            </div>
-            <div class="slot-buttons">
-                <button class="small" onclick="selectVideo('2')">Select</button>
-            </div>
-        </div>
-
-        <div class="video-slot" id="slot-3">
-            <div class="slot-left">
-                <div class="slot-label">Video 3 - Button 3</div>
-                <div class="empty-state">No video selected</div>
-            </div>
-            <div class="slot-buttons">
-                <button class="small" onclick="selectVideo('3')">Select</button>
-            </div>
-        </div>
-
-        <button class="secondary small" style="width: 100%; margin-top: 8px;" onclick="addSlot()">+ Add More</button>
-    </div>
-
-    <div class="actions">
-        <button class="secondary" onclick="refreshVideos()">Refresh</button>
-        <button class="start-button" id="start-btn" onclick="startPlayer()" disabled>Start Player</button>
-    </div>
-</div> 
     </div>
 
     <script>
+        const MAX_SLOTS = 15;
         let videoConfig = {};
-        let nextSlotId = 4;
+
+        // Find the next unused slot number
+        function nextSlotId() {
+            for (let i = 1; i <= MAX_SLOTS; i++) {
+                if (!videoConfig[String(i)]) return i;
+            }
+            return null;
+        }
+
+        function filledSlotHTML(id, video) {
+            return `
+                <div class="row-index">${String(id).padStart(2, '0')}</div>
+                <div class="row-info">
+                    <div class="row-label"><span class="filled-dot"></span>Video ${id}</div>
+                    <div class="row-filename">${video.name}</div>
+                </div>
+                <div class="row-size">${video.size}</div>
+                <div class="row-actions">
+                    <button class="btn btn-sm btn-change" onclick="selectVideo('${id}')">Change</button>
+                    <button class="btn btn-sm btn-remove" onclick="removeVideo('${id}')">Remove</button>
+                </div>
+            `;
+        }
+
+        function renderSlots() {
+            const container = document.getElementById('slots-container');
+            container.innerHTML = '';
+
+            // Render only filled slots, sorted by ID
+            const filledIds = Object.keys(videoConfig)
+                .filter(k => k !== 'default')
+                .map(Number)
+                .sort((a, b) => a - b);
+
+            filledIds.forEach(id => {
+                const row = document.createElement('div');
+                row.className = 'video-row filled';
+                row.id = `slot-${id}`;
+                row.innerHTML = filledSlotHTML(id, videoConfig[String(id)]);
+                container.appendChild(row);
+            });
+
+            // Add video row at the bottom
+            const next = nextSlotId();
+            if (next !== null) {
+                const addRow = document.createElement('div');
+                addRow.className = 'video-row add-row';
+                addRow.id = 'add-row';
+                addRow.onclick = () => addVideo();
+                addRow.innerHTML = `
+                    <div class="row-index" style="color:var(--text-muted)">+</div>
+                    <div class="row-info">
+                        <div class="row-label" style="color:var(--text-muted)">Add video</div>
+                        <div class="row-empty">Will be assigned slot ${String(next).padStart(2, '0')}</div>
+                    </div>
+                    <div class="row-size"></div>
+                    <div class="row-actions">
+                        <button class="btn btn-sm btn-select" onclick="event.stopPropagation(); addVideo()">Add</button>
+                    </div>
+                `;
+                container.appendChild(addRow);
+            }
+        }
 
         async function init() {
             const dir = await window.electronAPI.getVideosDir();
@@ -292,118 +546,85 @@
 
         async function refreshVideos() {
             const videos = await window.electronAPI.scanVideos();
-            console.log('Available videos:', videos);
-            
-            // Auto-assign videos based on naming
             videoConfig = {};
-            
             videos.forEach(video => {
                 const name = video.name.toLowerCase();
                 const nameWithoutExt = name.substring(0, name.lastIndexOf('.'));
-                
                 if (nameWithoutExt === 'default') {
                     videoConfig['default'] = video;
-                } else if (nameWithoutExt.match(/^video(\d+)$/)) {
-                    const num = nameWithoutExt.match(/^video(\d+)$/)[1];
-                    videoConfig[num] = video;
+                } else {
+                    const match = nameWithoutExt.match(/^video(\d+)$/);
+                    if (match) videoConfig[match[1]] = video;
                 }
             });
-
             updateUI();
         }
 
-       function updateUI() {
-            // Update each slot
-            Object.keys(videoConfig).forEach(id => {
-                const video = videoConfig[id];
-                const slot = document.getElementById(`slot-${id}`);
-                
-                if (slot) {
-                    slot.classList.add('filled');
-                    const slotLeft = slot.querySelector('.slot-left');
-                    const slotLabel = slotLeft.querySelector('.slot-label').textContent;
-                    
-                    slotLeft.innerHTML = `
-                        <div class="slot-label">${slotLabel}</div>
-                        <div class="video-name">${video.name}</div>
-                        <div class="video-size">${video.size}</div>
-                    `;
-                    
-                    slot.querySelector('.slot-buttons').innerHTML = `
-                        <button class="small secondary" onclick="selectVideo('${id}')">Change</button>
-                        <button class="small danger" onclick="removeVideo('${id}')">Remove</button>
-                    `;
-                }
-            });
+        function updateUI() {
+            const defaultVideo = videoConfig['default'];
 
-            // Update empty slots
-            const allSlots = document.querySelectorAll('.video-slot');
-            allSlots.forEach(slot => {
-                const slotId = slot.id.replace('slot-', '');
-                if (!videoConfig[slotId]) {
-                    slot.classList.remove('filled');
-                    const slotLeft = slot.querySelector('.slot-left');
-                    const slotLabel = slotLeft.querySelector('.slot-label').textContent;
-                    
-                    slotLeft.innerHTML = `
-                        <div class="slot-label">${slotLabel}</div>
-                        <div class="empty-state">No video selected</div>
-                    `;
-                    
-                    slot.querySelector('.slot-buttons').innerHTML = `
-                        <button class="small" onclick="selectVideo('${slotId}')">Select</button>
-                    `;
-                }
-            });
+            // Default slot
+            if (defaultVideo) {
+                document.getElementById('default-sub').innerHTML =
+                    `<span class="filled-dot"></span><span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--green)">${defaultVideo.name}</span>`;
+                document.getElementById('default-size').textContent = defaultVideo.size;
+                document.getElementById('default-actions').innerHTML = `
+                    <button class="btn btn-sm btn-change" onclick="selectVideo('default')">Change</button>
+                    <button class="btn btn-sm btn-remove" onclick="removeVideo('default')">Remove</button>
+                `;
+            } else {
+                document.getElementById('default-sub').className = 'row-empty';
+                document.getElementById('default-sub').innerHTML = 'Plays silently on loop when idle';
+                document.getElementById('default-size').textContent = '';
+                document.getElementById('default-actions').innerHTML =
+                    `<button class="btn btn-sm btn-select" onclick="selectVideo('default')">Select</button>`;
+            }
 
-            // Enable/disable start button
+            renderSlots();
+
+            // Stats
+            const actionCount = Object.keys(videoConfig).filter(k => k !== 'default').length;
+            document.getElementById('stat-count').textContent = actionCount;
+            document.getElementById('stat-default').textContent = defaultVideo ? 'Set' : 'Not set';
+            document.getElementById('stat-default').className = `stat-value${defaultVideo ? ' ok' : ''}`;
+
+            // Status
+            const dot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
             const startBtn = document.getElementById('start-btn');
-            if (videoConfig['default']) {
+
+            if (defaultVideo) {
+                dot.className = 'status-dot ready';
+                statusText.textContent = `Ready  —  ${actionCount} action video${actionCount !== 1 ? 's' : ''} configured`;
                 startBtn.disabled = false;
             } else {
+                dot.className = 'status-dot';
+                statusText.textContent = 'Select a default video to continue';
                 startBtn.disabled = true;
             }
-        } 
+        }
+
+        async function addVideo() {
+            const next = nextSlotId();
+            if (next === null) { alert('Maximum of 15 action videos reached.'); return; }
+            const video = await window.electronAPI.selectVideoFile();
+            if (video) {
+                videoConfig[String(next)] = video;
+                updateUI();
+            }
+        }
 
         async function selectVideo(slotId) {
             const video = await window.electronAPI.selectVideoFile();
             if (video) {
-                // Rename file to match slot
-                const ext = video.name.substring(video.name.lastIndexOf('.'));
-                const newName = slotId === 'default' ? `default${ext}` : `video${slotId}${ext}`;
-                
-                // You could rename the file here if needed
                 videoConfig[slotId] = video;
                 updateUI();
             }
         }
 
         async function removeVideo(slotId) {
-            if (confirm('Remove this video?')) {
-                delete videoConfig[slotId];
-                updateUI();
-            }
-        }
-
-        function addSlot() {
-            const section = document.querySelector('.section:last-of-type');
-            const addButton = section.querySelector('button[onclick="addSlot()"]');
-            
-            const newSlot = document.createElement('div');
-            newSlot.className = 'video-slot';
-            newSlot.id = `slot-${nextSlotId}`;
-            newSlot.innerHTML = `
-                <div class="slot-left">
-                    <div class="slot-label">Video ${nextSlotId} - Button ${nextSlotId}</div>
-                    <div class="empty-state">No video selected</div>
-                </div>
-                <div class="slot-buttons">
-                    <button class="small" onclick="selectVideo('${nextSlotId}')">Select</button>
-                </div>
-            `;
-            
-            section.insertBefore(newSlot, addButton);
-            nextSlotId++;
+            delete videoConfig[slotId];
+            updateUI();
         }
 
         async function openVideosFolder() {
@@ -412,15 +633,12 @@
 
         async function startPlayer() {
             if (!videoConfig['default']) {
-                alert('Please select a default video first!');
+                alert('Please select a default video first.');
                 return;
             }
-
-            console.log('Starting player with config:', videoConfig);
             await window.electronAPI.startPlayer(videoConfig);
         }
 
-        // Initialize on load
         init();
     </script>
 </body>

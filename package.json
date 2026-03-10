@@ -1,6 +1,6 @@
 {
   "name": "videoplayer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Fullscreen Video Player with Flic Button Support",
   "main": "launcher.js",
   "scripts": {
@@ -13,8 +13,13 @@
   "author": {"name": "Victor", "email": "victor@example.com"},
   "license": "MIT",
   "build": {
-    "appId": "com.yourcompany.videoplayer",
+    "appId": "com.viclab4943.videoplayer",
     "productName": "Video Player",
+    "publish": {
+      "provider": "github",
+      "owner": "Viclab4943",
+      "repo": "Electron_VideoPlayer"
+    },
     "directories": {
       "output": "dist"
     },
@@ -57,7 +62,8 @@
     "express": "^4.18.2",
     "ws": "^8.14.2",
     "fluent-ffmpeg": "^2.1.2",
-    "ffmpeg-static": "^5.2.0"
+    "ffmpeg-static": "^5.2.0",
+    "electron-updater": "^6.1.7"
   },
   "devDependencies": {
     "electron": "^27.0.0",
