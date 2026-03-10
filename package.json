@@ -10,7 +10,7 @@
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux"
   },
-  "author": "Your Name",
+  "author": {"name": "Victor", "email": "victor@example.com"},
   "license": "MIT",
   "build": {
     "appId": "com.yourcompany.videoplayer",
