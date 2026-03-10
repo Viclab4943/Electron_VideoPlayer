@@ -1,6 +1,6 @@
 {
   "name": "videoplayer",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "description": "Fullscreen Video Player with Flic Button Support",
   "main": "launcher.js",
   "scripts": {
