@@ -1,3 +1,4 @@
+
 name: Build Video Player
 
 on:
@@ -6,6 +7,9 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -41,16 +45,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build and publish (on tag)
+      - name: Build and publish on tag
         if: startsWith(github.ref, 'refs/tags/v')
-        run: npm run build:${{ matrix.platform }}
+        run: npm run build:${{ matrix.platform }} -- --publish always
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # electron-builder will automatically publish to GitHub Releases
-          # when the GH_TOKEN is set and building from a tag
 
-      - name: Build only (on branch push)
+      - name: Build only on branch push
         if: "!startsWith(github.ref, 'refs/tags/v')"
         run: npm run build:${{ matrix.platform }}
         env:
@@ -58,7 +60,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Mac artifacts
-        if: matrix.platform == 'mac' && !startsWith(github.ref, 'refs/tags/v')
+        if: "matrix.platform == 'mac' && !startsWith(github.ref, 'refs/tags/v')"
         uses: actions/upload-artifact@v4
         with:
           name: VideoPlayer-Mac
@@ -68,7 +70,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Windows artifacts
-        if: matrix.platform == 'win' && !startsWith(github.ref, 'refs/tags/v')
+        if: "matrix.platform == 'win' && !startsWith(github.ref, 'refs/tags/v')"
         uses: actions/upload-artifact@v4
         with:
           name: VideoPlayer-Windows
@@ -77,7 +79,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Linux artifacts
-        if: matrix.platform == 'linux' && !startsWith(github.ref, 'refs/tags/v')
+        if: "matrix.platform == 'linux' && !startsWith(github.ref, 'refs/tags/v')"
         uses: actions/upload-artifact@v4
         with:
           name: VideoPlayer-Linux
