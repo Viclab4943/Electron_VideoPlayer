@@ -378,6 +378,83 @@
             margin-bottom: 3px;
             display: inline-block;
         }
+
+        /* Flic Hub Settings */
+        .flic-section { padding-bottom: 12px; }
+
+        .flic-status {
+            font-family: 'DM Mono', monospace;
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        .flic-status.connected { color: var(--green); }
+        .flic-status.error { color: var(--red); }
+
+        .flic-form { margin-top: 8px; }
+
+        .input-group {
+            margin-bottom: 8px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 9px;
+            color: var(--text-muted);
+            margin-bottom: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .input-group input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 6px 8px;
+            font-size: 11px;
+            font-family: 'DM Mono', monospace;
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+
+        .input-group input:focus {
+            border-color: var(--accent-dim);
+        }
+
+        .input-group input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 10px 0;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 12px;
+            height: 12px;
+            accent-color: var(--green);
+        }
+
+        .checkbox-group label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .flic-buttons {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .flic-buttons .btn {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -430,6 +507,35 @@
             <div class="sidebar-section">
                 <div class="sidebar-label">Supported Formats</div>
                 <div class="path-display">mp4  mov  avi<br>mkv  webm  m4v</div>
+            </div>
+
+            <div class="sidebar-section flic-section">
+                <div class="sidebar-label" style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>Flic Hub</span>
+                    <span class="flic-status" id="flic-status">Not configured</span>
+                </div>
+                <div class="flic-form">
+                    <div class="input-group">
+                        <label>Hub IP Address</label>
+                        <input type="text" id="flic-ip" placeholder="192.168.1.x" spellcheck="false">
+                    </div>
+                    <div class="input-group">
+                        <label>SDK Username</label>
+                        <input type="text" id="flic-user" placeholder="Optional" spellcheck="false">
+                    </div>
+                    <div class="input-group">
+                        <label>SDK Password</label>
+                        <input type="password" id="flic-pass" placeholder="Optional" spellcheck="false">
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="flic-autosync" checked>
+                        <label for="flic-autosync">Auto-sync IP on launch</label>
+                    </div>
+                    <div class="flic-buttons">
+                        <button class="btn btn-sm btn-ghost" onclick="testFlicConnection()">Test</button>
+                        <button class="btn btn-sm btn-select" onclick="saveFlicSettings()">Save</button>
+                    </div>
+                </div>
             </div>
 
             <div class="sidebar-actions">
@@ -639,7 +745,83 @@
             await window.electronAPI.startPlayer(videoConfig);
         }
 
+        // Flic Hub Settings
+        async function loadFlicSettings() {
+            const settings = await window.electronAPI.getFlicSettings();
+            if (settings) {
+                document.getElementById('flic-ip').value = settings.ip || '';
+                document.getElementById('flic-user').value = settings.username || '';
+                document.getElementById('flic-pass').value = settings.password || '';
+                document.getElementById('flic-autosync').checked = settings.autoSync !== false;
+                updateFlicStatus(settings.ip ? 'configured' : 'none');
+            }
+        }
+
+        async function saveFlicSettings() {
+            const settings = {
+                ip: document.getElementById('flic-ip').value.trim(),
+                username: document.getElementById('flic-user').value.trim(),
+                password: document.getElementById('flic-pass').value,
+                autoSync: document.getElementById('flic-autosync').checked
+            };
+
+            const success = await window.electronAPI.saveFlicSettings(settings);
+            if (success) {
+                updateFlicStatus(settings.ip ? 'saved' : 'none');
+                setTimeout(() => updateFlicStatus(settings.ip ? 'configured' : 'none'), 1500);
+            }
+        }
+
+        async function testFlicConnection() {
+            const ip = document.getElementById('flic-ip').value.trim();
+            if (!ip) {
+                updateFlicStatus('error', 'Enter IP first');
+                return;
+            }
+
+            updateFlicStatus('testing', 'Testing...');
+            const result = await window.electronAPI.testFlicConnection(ip);
+
+            if (result.success) {
+                updateFlicStatus('connected', 'Connected');
+                setTimeout(() => updateFlicStatus('configured'), 2000);
+            } else {
+                updateFlicStatus('error', result.error || 'Failed');
+                setTimeout(() => updateFlicStatus('configured'), 3000);
+            }
+        }
+
+        function updateFlicStatus(state, message) {
+            const el = document.getElementById('flic-status');
+            el.className = 'flic-status';
+
+            switch (state) {
+                case 'none':
+                    el.textContent = 'Not configured';
+                    break;
+                case 'configured':
+                    el.textContent = 'Configured';
+                    break;
+                case 'saved':
+                    el.className = 'flic-status connected';
+                    el.textContent = 'Saved';
+                    break;
+                case 'testing':
+                    el.textContent = message || 'Testing...';
+                    break;
+                case 'connected':
+                    el.className = 'flic-status connected';
+                    el.textContent = message || 'Connected';
+                    break;
+                case 'error':
+                    el.className = 'flic-status error';
+                    el.textContent = message || 'Error';
+                    break;
+            }
+        }
+
         init();
+        loadFlicSettings();
     </script>
 </body>
 </html>

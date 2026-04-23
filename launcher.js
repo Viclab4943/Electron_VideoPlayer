@@ -14,29 +14,54 @@ let serverProcess;
 const VIDEOS_DIR = path.join(app.getPath('documents'), 'VideoPlayer', 'videos');
 const CACHE_DIR = path.join(app.getPath('documents'), 'VideoPlayer', 'cache');
 const CONFIG_FILE = path.join(app.getPath('userData'), 'video-config.json');
+const FLIC_CONFIG_FILE = path.join(app.getPath('userData'), 'flic-config.json');
 
-// Flic Hub config — update these to match your setup
-const FLIC_HUB_IP = '192.168.68.193';
-const FLIC_HUB_WS = `ws://${FLIC_HUB_IP}:9999/`;
-const FLIC_SDK_USERNAME = 'YOUR_USERNAME';
-const FLIC_SDK_PASSWORD = 'YOUR_PASSWORD';
+// Flic Hub script name on the hub
 const FLIC_SCRIPT_NAME = 'flic-hub.js';
+
+// Load Flic settings from config file
+function loadFlicSettings() {
+    try {
+        if (fs.existsSync(FLIC_CONFIG_FILE)) {
+            return JSON.parse(fs.readFileSync(FLIC_CONFIG_FILE, 'utf8'));
+        }
+    } catch (err) {
+        console.log('[flic] Error loading settings:', err.message);
+    }
+    return { ip: '', username: '', password: '', autoSync: true };
+}
+
+// Save Flic settings to config file
+function saveFlicSettings(settings) {
+    try {
+        fs.writeFileSync(FLIC_CONFIG_FILE, JSON.stringify(settings, null, 2));
+        return true;
+    } catch (err) {
+        console.log('[flic] Error saving settings:', err.message);
+        return false;
+    }
+}
 
 // Ensure directories exist
 if (!fs.existsSync(VIDEOS_DIR)) fs.mkdirSync(VIDEOS_DIR, { recursive: true });
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
 // Get local IP on same subnet as Flic Hub
-function getLocalIP() {
+function getLocalIP(hubIP) {
     const interfaces = os.networkInterfaces();
-    const hubSubnet = FLIC_HUB_IP.split('.').slice(0, 3).join('.');
-    for (const name of Object.keys(interfaces)) {
-        for (const iface of interfaces[name]) {
-            if (iface.family === 'IPv4' && !iface.internal) {
-                if (iface.address.startsWith(hubSubnet)) return iface.address;
+    const hubSubnet = hubIP ? hubIP.split('.').slice(0, 3).join('.') : null;
+
+    // First try to find IP on same subnet as hub
+    if (hubSubnet) {
+        for (const name of Object.keys(interfaces)) {
+            for (const iface of interfaces[name]) {
+                if (iface.family === 'IPv4' && !iface.internal) {
+                    if (iface.address.startsWith(hubSubnet)) return iface.address;
+                }
             }
         }
     }
+
     // Fallback: any non-internal IPv4
     for (const name of Object.keys(interfaces)) {
         for (const iface of interfaces[name]) {
@@ -48,13 +73,28 @@ function getLocalIP() {
 
 // Silently sync IP to Flic Hub — runs in background, never blocks the app
 function syncFlicHubIP() {
-    const localIP = getLocalIP();
+    const flicSettings = loadFlicSettings();
+
+    // Skip if not configured or auto-sync disabled
+    if (!flicSettings.ip) {
+        console.log('[flic-sync] No Flic Hub IP configured, skipping sync.');
+        return;
+    }
+
+    if (!flicSettings.autoSync) {
+        console.log('[flic-sync] Auto-sync disabled, skipping.');
+        return;
+    }
+
+    const localIP = getLocalIP(flicSettings.ip);
     if (!localIP) {
         console.log('[flic-sync] No local IP found, skipping sync.');
         return;
     }
 
-    console.log(`[flic-sync] Local IP: ${localIP} — connecting to hub...`);
+    const FLIC_HUB_WS = `ws://${flicSettings.ip}:9999/`;
+
+    console.log(`[flic-sync] Local IP: ${localIP} — connecting to hub at ${flicSettings.ip}...`);
 
     let ws;
     try {
@@ -83,8 +123,8 @@ function syncFlicHubIP() {
             step = 'login';
             ws.send(JSON.stringify({
                 type: 'login',
-                username: FLIC_SDK_USERNAME,
-                password: FLIC_SDK_PASSWORD
+                username: flicSettings.username || '',
+                password: flicSettings.password || ''
             }));
             return;
         }
@@ -95,7 +135,7 @@ function syncFlicHubIP() {
                 step = 'getFile';
                 ws.send(JSON.stringify({ type: 'getFile', name: FLIC_SCRIPT_NAME }));
             } else {
-                console.log('[flic-sync] Login failed — check credentials in launcher.js');
+                console.log('[flic-sync] Login failed — check credentials in settings');
                 clearTimeout(timeout);
                 ws.close();
             }
@@ -159,6 +199,40 @@ function syncFlicHubIP() {
 
     ws.on('close', () => {
         console.log('[flic-sync] Disconnected from hub.');
+    });
+}
+
+// Test connection to Flic Hub
+function testFlicConnection(ip) {
+    return new Promise((resolve) => {
+        if (!ip) {
+            resolve({ success: false, error: 'No IP provided' });
+            return;
+        }
+
+        let ws;
+        try {
+            ws = new WebSocket(`ws://${ip}:9999/`);
+        } catch (e) {
+            resolve({ success: false, error: e.message });
+            return;
+        }
+
+        const timeout = setTimeout(() => {
+            try { ws.close(); } catch (e) {}
+            resolve({ success: false, error: 'Connection timeout' });
+        }, 5000);
+
+        ws.on('open', () => {
+            clearTimeout(timeout);
+            ws.close();
+            resolve({ success: true });
+        });
+
+        ws.on('error', (err) => {
+            clearTimeout(timeout);
+            resolve({ success: false, error: err.message });
+        });
     });
 }
 
@@ -368,10 +442,23 @@ ipcMain.handle('open-videos-folder', () => {
     shell.openPath(VIDEOS_DIR);
 });
 
+// Flic Hub settings IPC handlers
+ipcMain.handle('get-flic-settings', () => {
+    return loadFlicSettings();
+});
+
+ipcMain.handle('save-flic-settings', (event, settings) => {
+    return saveFlicSettings(settings);
+});
+
+ipcMain.handle('test-flic-connection', async (event, ip) => {
+    return await testFlicConnection(ip);
+});
+
 app.whenReady().then(() => {
     setupAutoUpdater();
-    // Only sync Flic Hub IP on Windows builds
-    if (process.platform === "win32") syncFlicHubIP();
+    // Sync Flic Hub IP if configured (works on all platforms)
+    syncFlicHubIP();
     createLauncher();
 });
 

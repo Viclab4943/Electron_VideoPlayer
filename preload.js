@@ -6,5 +6,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     selectVideoFile: () => ipcRenderer.invoke('select-video-file'),
     deleteVideo: (filePath) => ipcRenderer.invoke('delete-video', filePath),
     startPlayer: (config) => ipcRenderer.invoke('start-player', config),
-    openVideosFolder: () => ipcRenderer.invoke('open-videos-folder')
+    openVideosFolder: () => ipcRenderer.invoke('open-videos-folder'),
+    // Flic Hub settings
+    getFlicSettings: () => ipcRenderer.invoke('get-flic-settings'),
+    saveFlicSettings: (settings) => ipcRenderer.invoke('save-flic-settings', settings),
+    testFlicConnection: (ip) => ipcRenderer.invoke('test-flic-connection', ip)
 });
